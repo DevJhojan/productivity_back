@@ -2,15 +2,16 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+class DocumentType(models.TextChoices):
+    CC = "CC", "Cédula de Ciudadanía"
+    CE = "CE", "Cédula de Extranjería"
+    TI = "TI", "Tarjeta de Identidad"
+    PASSPORT = "PASSPORT", "Pasaporte"
+    NIT = "NIT", "Número de Identificación Tributaria"
+    RC = "RC", "Registro Civil"
+    OTHER = "OTHER", "Otro"
+
 class Person(models.Model):
-    class DocumentType(models.TextChoices):
-        CC = "CC", "Cédula de Ciudadanía"
-        CE = "CE", "Cédula de Extranjería"
-        TI = "TI", "Tarjeta de Identidad"
-        PASSPORT = "PASSPORT", "Pasaporte"
-        NIT = "NIT", "Número de Identificación Tributaria"
-        RC = "RC", "Registro Civil"
-        OTHER = "OTHER", "Otro"
     document_type = models.CharField(
         max_length=20,
         choices=DocumentType.choices,
@@ -29,7 +30,9 @@ class Person(models.Model):
     def __str__(self):
         return f"{self.document_type} {self.document_number}"
 
+
 class User(AbstractUser, Person):
     email = models.EmailField(unique=True)
+
     def __str__(self):
         return self.username

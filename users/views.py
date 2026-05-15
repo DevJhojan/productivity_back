@@ -2,7 +2,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .users_serializer import user_to_dict
-from .users_service import (list_users, create_user, _get_user_or_404, update_user, patch_user, delete_user)
+from .users_service import (list_users, create_user, _get_user_or_404, patch_user, delete_user, update_user_partial)
 
 @csrf_exempt
 def user_view(request):
@@ -20,7 +20,7 @@ def user_detail(request, user_id):
     if request.method == "GET":
         return JsonResponse(user_to_dict(user))
     if request.method == "PUT":
-        return update_user(user, json.loads(request.body))
+        return update_user_partial(user, json.loads(request.body))
     if request.method == "PATCH":
         return patch_user(user, json.loads(request.body))
     if request.method == "DELETE":

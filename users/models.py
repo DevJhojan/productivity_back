@@ -1,5 +1,5 @@
-from django.contrib.auth.models import AbstractUser # type: ignore
-from django.db import models # type: ignore
+from django.contrib.auth.models import AbstractUser  # type: ignore
+from django.db import models  # type: ignore
 
 
 class DocumentType(models.TextChoices):
@@ -10,6 +10,7 @@ class DocumentType(models.TextChoices):
     NIT = "NIT", "Número de Identificación Tributaria"
     RC = "RC", "Registro Civil"
     OTHER = "OTHER", "Otro"
+
 
 class Person(models.Model):
     document_type = models.CharField(

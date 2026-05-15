@@ -1,12 +1,12 @@
-def person_to_dict(person):
+def person_to_dict(user):
     return {
-        "document_type": person.document_type,
-        "document_number": person.document_number,
-        "phone": person.phone,
-        "address": person.address,
-        "birth_date": person.birth_date.isoformat() if person.birth_date else None,
-        "created_at": person.created_at.isoformat(),
-        "updated_at": person.updated_at.isoformat(),
+        "document_type": user.document_type,
+        "document_number": user.document_number,
+        "phone": user.phone,
+        "address": user.address,
+        "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+        "created_at": user.created_at.isoformat(),
+        "updated_at": user.updated_at.isoformat(),
     }
 
 def user_to_dict(user):
@@ -16,5 +16,5 @@ def user_to_dict(user):
         "email": user.email,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "person": person_to_dict(user.person) if hasattr(user, 'person') else None,
+        "person": person_to_dict(user) if hasattr(user, 'person') else None,
     }

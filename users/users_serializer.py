@@ -16,5 +16,7 @@ def user_to_dict(user):
         "email": user.email,
         "first_name": user.first_name,
         "last_name": user.last_name,
+        "points": float(user.points),
+        "level_state": user.get_level_state(),
         "person": person_to_dict(user) if hasattr(user, 'person') else None,
     }

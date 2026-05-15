@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractUser  # type: ignore
 from django.db import models  # type: ignore
-
+from funcs.system_levels import LevelSystem  # type: ignore
 
 class DocumentType(models.TextChoices):
     CC = "CC", "Cédula de Ciudadanía"
@@ -34,6 +34,10 @@ class Person(models.Model):
 
 class User(AbstractUser, Person):
     email = models.EmailField(unique=True)
+    points = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def get_level_state(self)-> dict:
+        return LevelSystem.build_level_state(float(self.points))
 
     def __str__(self):
         return self.username

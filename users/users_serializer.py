@@ -1,3 +1,13 @@
+def attributes_to_list(user):
+    return [
+        {
+            "name": attr.name,
+            "points": float(attr.points),
+        }
+        for attr in user.attributes.all().order_by("name")
+    ]
+
+
 def person_to_dict(user):
     return {
         "document_type": user.document_type,
@@ -9,6 +19,7 @@ def person_to_dict(user):
         "updated_at": user.updated_at.isoformat(),
     }
 
+
 def user_to_dict(user):
     return {
         "id": user.id,
@@ -18,5 +29,6 @@ def user_to_dict(user):
         "last_name": user.last_name,
         "points": float(user.points),
         "level_state": user.get_level_state(),
-        "person": person_to_dict(user) if hasattr(user, 'person') else None,
+        "attributes": attributes_to_list(user),
+        "person": person_to_dict(user),
     }

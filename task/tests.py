@@ -1,6 +1,7 @@
 import json
+from decimal import Decimal
 from django.test import TestCase, RequestFactory
-from users.models_users import User
+from users.models_users import User, UserAttribute
 from .models_task import Task
 from .task_service import (
     create_task,
@@ -22,14 +23,20 @@ def make_user(username="testuser", points=0.0):
 
 
 def make_task(
-    owner, status=Task.Status.PENDING, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT
+    owner,
+    status=Task.Status.PENDING,
+    priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT,
+    attribute=None,
 ):
+    if attribute is None:
+        attribute = owner.attributes.get(name=UserAttribute.AttributeName.STRENGTH)
     return Task.objects.create(
         title="Test task",
         description="desc",
         status=status,
         priority=priority,
         owner=owner,
+        attribute=attribute,
     )
 
 
@@ -76,6 +83,16 @@ class CreateTaskTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data["status"], "IN_PROGRESS")
 
+    def test_creates_task_with_default_attribute_when_not_sent(self):
+        body = json.dumps({"title": "Task", "owner_id": self.owner.id})
+        request = self.factory.post(
+            "/api/tasks/", body, content_type="application/json"
+        )
+        response = create_task(request)
+
+        data = json.loads(response.content)
+        self.assertIsNotNone(data["attribute_id"])
+
 
 class PatchTaskLevelTest(TestCase):
     def setUp(self):
@@ -89,7 +106,7 @@ class PatchTaskLevelTest(TestCase):
         self.owner.refresh_from_db()
         self.assertIn("earned_points", data)
         self.assertEqual(data["earned_points"], 0.10)
-        self.assertEqual(float(self.owner.points), 0.10)
+        self.assertEqual(float(self.owner.points), 0.02)
 
     def test_patch_to_completed_sets_completed_at(self):
         patch_task(self.task, {"status": "COMPLETED"})
@@ -135,7 +152,7 @@ class UpdateTaskLevelTest(TestCase):
         self.owner.refresh_from_db()
         self.assertIn("earned_points", data)
         self.assertEqual(data["earned_points"], 0.10)
-        self.assertEqual(float(self.owner.points), 0.10)
+        self.assertEqual(float(self.owner.points), 0.02)
 
     def test_put_already_completed_does_not_double_award(self):
         self.task.status = Task.Status.COMPLETED
@@ -185,6 +202,41 @@ class PointsParamsForTaskTest(TestCase):
         from .task_service import _get_points_params_for_task
 
         self.assertEqual(_get_points_params_for_task(), ("task", None))
+
+
+class TaskAttributeRoutingTest(TestCase):
+    def setUp(self):
+        self.owner = make_user(username="owner-attr")
+        self.target_attribute = self.owner.attributes.get(
+            name=UserAttribute.AttributeName.AGILITY
+        )
+        self.other_attribute = self.owner.attributes.get(
+            name=UserAttribute.AttributeName.STRENGTH
+        )
+        self.task = make_task(self.owner, attribute=self.target_attribute)
+
+    def test_completed_task_increments_only_linked_attribute(self):
+        patch_task(self.task, {"status": "COMPLETED"})
+
+        self.target_attribute.refresh_from_db()
+        self.other_attribute.refresh_from_db()
+        self.owner.refresh_from_db()
+
+        self.assertEqual(float(self.target_attribute.points), 0.10)
+        self.assertEqual(float(self.other_attribute.points), 0.00)
+        self.assertEqual(float(self.owner.points), 0.02)
+
+    def test_patch_rejects_attribute_from_other_owner(self):
+        another_user = make_user(username="other-owner")
+        another_attr = another_user.attributes.get(
+            name=UserAttribute.AttributeName.PERCEPTION
+        )
+
+        response = patch_task(self.task, {"attribute_id": another_attr.id})
+        data = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("must belong", data["error"])
 
 
 class DeleteTaskTest(TestCase):

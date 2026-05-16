@@ -1,6 +1,7 @@
 import json
 from django.test import TestCase
 from users.models_users import User
+from users.models_users import UserAttribute
 from task.models_task import Task
 from task.task_service import patch_task, update_task
 from funcs.system_levels import LevelSystem
@@ -17,13 +18,19 @@ def make_user(username="player", document_number="100", points=0.0):
 
 
 def make_task(
-    owner, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT, status=Task.Status.PENDING
+    owner,
+    priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT,
+    status=Task.Status.PENDING,
+    attribute=None,
 ):
+    if attribute is None:
+        attribute = owner.attributes.get(name=UserAttribute.AttributeName.STRENGTH)
     return Task.objects.create(
         title="Integration task",
         status=status,
         priority=priority,
         owner=owner,
+        attribute=attribute,
     )
 
 
@@ -55,7 +62,7 @@ class CompletingTaskAwardsPointsTest(TestCase):
         patch_task(self.task, {"status": "COMPLETED"})
 
         self.user.refresh_from_db()
-        self.assertEqual(float(self.user.points), expected)
+        self.assertEqual(float(self.user.points), expected / 5)
 
     def test_completing_twice_does_not_double_points(self):
         patch_task(self.task, {"status": "COMPLETED"})
@@ -89,12 +96,12 @@ class LevelUpIntegrationTest(TestCase):
     """Con suficientes puntos acumulados el usuario sube de nivel."""
 
     def test_user_levels_up_after_many_completions(self):
-        # Nobody: 0-499. Cada Task otorga 0.10.
-        # Con 499.0 y 10 tareas completadas => 500.0, debe subir a Forgotten.
+        # Nobody: 0-499. Cada Task aporta 0.10 a un atributo, y el usuario sube 0.02 por tarea.
+        # Con 499.0 y 50 tareas completadas => 500.0.
         user = make_user(points=499.0, document_number="200")
 
         data = None
-        for _ in range(10):
+        for _ in range(50):
             task = make_task(user, priority=Task.Priority.IMPORTANT_URGENT)
             response = patch_task(task, {"status": "COMPLETED"})
             data = json.loads(response.content)

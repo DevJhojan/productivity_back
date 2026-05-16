@@ -1,6 +1,7 @@
 import json
 from django.test import TestCase, RequestFactory
-from .models_users import User
+from decimal import Decimal
+from .models_users import User, UserAttribute
 from .users_service import (
     create_user,
     update_user_partial,
@@ -160,3 +161,30 @@ class UserLevelStateTest(TestCase):
         self.assertIn("level_state", data)
         self.assertIn("points", data)
         self.assertEqual(data["points"], 0.0)
+
+
+class UserAttributesTest(TestCase):
+    def test_new_user_has_five_default_attributes(self):
+        user = make_user(username="attrs", document_number="attrs-1")
+        names = sorted(user.attributes.values_list("name", flat=True))
+        self.assertEqual(
+            names,
+            [
+                "Agility",
+                "Intelligence",
+                "Perception",
+                "Strength",
+                "Vitality",
+            ],
+        )
+
+    def test_user_points_are_average_of_attributes(self):
+        user = make_user(username="avg", document_number="avg-1")
+        strength = UserAttribute.objects.get(
+            user=user, name=UserAttribute.AttributeName.STRENGTH
+        )
+        strength.points = Decimal("1.00")
+        strength.save(update_fields=["points"])
+
+        user.refresh_from_db()
+        self.assertEqual(float(user.points), 0.20)

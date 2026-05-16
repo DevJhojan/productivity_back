@@ -149,6 +149,36 @@ class UpdateTaskLevelTest(TestCase):
         self.assertEqual(float(self.owner.points), 5.0)
 
 
+class CustomStatusTransitionPointsPersistenceTest(TestCase):
+    """Custom tests: transitioning to COMPLETED must persist points in DB."""
+
+    def test_pending_to_completed_increments_and_persists_points(self):
+        owner = make_user(username="pending_user", points=0.0)
+        task = make_task(owner, status=Task.Status.PENDING)
+
+        patch_task(task, {"status": "COMPLETED"})
+
+        task.refresh_from_db()
+        owner.refresh_from_db()
+
+        self.assertEqual(task.status, Task.Status.COMPLETED)
+        self.assertIsNotNone(task.completed_at)
+        self.assertGreater(float(owner.points), 0.0)
+
+    def test_in_progress_to_completed_increments_and_persists_points(self):
+        owner = make_user(username="inprogress_user", points=0.0)
+        task = make_task(owner, status=Task.Status.IN_PROGRESS)
+
+        patch_task(task, {"status": "COMPLETED"})
+
+        task.refresh_from_db()
+        owner.refresh_from_db()
+
+        self.assertEqual(task.status, Task.Status.COMPLETED)
+        self.assertIsNotNone(task.completed_at)
+        self.assertGreater(float(owner.points), 0.0)
+
+
 class MapTaskTypeTest(TestCase):
     def setUp(self):
         self.owner = make_user()

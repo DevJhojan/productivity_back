@@ -13,7 +13,7 @@ def _load_json(request):
 
 def _get_user_or_404(user_id):
     try:
-        return User.objects.get(id=user_id)
+        return User.objects.get(id=user_id), None
     except User.DoesNotExist:
         return None, JsonResponse({"error": "User not found"}, status=404)
 
@@ -94,6 +94,8 @@ def patch_user(user, data):
         user.birth_date = data["birth_date"]
     if "password" in data and data["password"]:
         user.set_password(data["password"])
+    if "points" in data:
+        user.points = data["points"]
     user.save()
     return JsonResponse(user_to_dict(user))
 

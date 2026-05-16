@@ -5,9 +5,7 @@ from .models_habit import Habit, HabitLog
 
 def _get_streak(habit: Habit) -> int:
     """Count consecutive days of logs ending yesterday (or today if already checked)."""
-    logs = set(
-        HabitLog.objects.filter(habit=habit).values_list("date", flat=True)
-    )
+    logs = set(HabitLog.objects.filter(habit=habit).values_list("date", flat=True))
     if not logs:
         return 0
 
@@ -16,10 +14,12 @@ def _get_streak(habit: Habit) -> int:
     current = today
     if today not in logs:
         from datetime import timedelta
+
         current = today - timedelta(days=1)
 
     streak = 0
     from datetime import timedelta
+
     while current in logs:
         streak += 1
         current -= timedelta(days=1)

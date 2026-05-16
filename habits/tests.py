@@ -19,6 +19,7 @@ from .habit_service import (
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def make_user(username="habituser", points=0.0):
     return User.objects.create_user(
         username=username,
@@ -50,23 +51,31 @@ def patch_request(factory, path, body):
 
 # ── Create habit ──────────────────────────────────────────────────────────────
 
+
 class CreateHabitTest(TestCase):
     def setUp(self):
         self.owner = make_user()
         self.factory = RequestFactory()
 
     def test_creates_habit_with_default_attribute(self):
-        req = post_request(self.factory, "/api/habits/", {"owner_id": self.owner.id, "title": "Meditate"})
+        req = post_request(
+            self.factory,
+            "/api/habits/",
+            {"owner_id": self.owner.id, "title": "Meditate"},
+        )
         response = create_habit(req)
         self.assertEqual(response.status_code, 201)
         data = json.loads(response.content)
         self.assertEqual(data["title"], "Meditate")
-        self.assertEqual(data["attribute"]["name"], UserAttribute.AttributeName.STRENGTH)
+        self.assertEqual(
+            data["attribute"]["name"], UserAttribute.AttributeName.STRENGTH
+        )
 
     def test_creates_habit_with_explicit_attribute(self):
         attr = self.owner.attributes.get(name=UserAttribute.AttributeName.AGILITY)
         req = post_request(
-            self.factory, "/api/habits/",
+            self.factory,
+            "/api/habits/",
             {"owner_id": self.owner.id, "title": "Run", "attribute_id": attr.id},
         )
         response = create_habit(req)
@@ -86,10 +95,17 @@ class CreateHabitTest(TestCase):
 
     def test_cross_owner_attribute_returns_400(self):
         other_user = make_user(username="other")
-        foreign_attr = other_user.attributes.get(name=UserAttribute.AttributeName.STRENGTH)
+        foreign_attr = other_user.attributes.get(
+            name=UserAttribute.AttributeName.STRENGTH
+        )
         req = post_request(
-            self.factory, "/api/habits/",
-            {"owner_id": self.owner.id, "title": "Swim", "attribute_id": foreign_attr.id},
+            self.factory,
+            "/api/habits/",
+            {
+                "owner_id": self.owner.id,
+                "title": "Swim",
+                "attribute_id": foreign_attr.id,
+            },
         )
         response = create_habit(req)
         self.assertEqual(response.status_code, 400)
@@ -98,6 +114,7 @@ class CreateHabitTest(TestCase):
 
 
 # ── Check habit ───────────────────────────────────────────────────────────────
+
 
 class CheckHabitTest(TestCase):
     def setUp(self):
@@ -115,7 +132,9 @@ class CheckHabitTest(TestCase):
 
     def test_check_creates_habit_log(self):
         self._check()
-        self.assertEqual(HabitLog.objects.filter(habit=self.habit, date=date.today()).count(), 1)
+        self.assertEqual(
+            HabitLog.objects.filter(habit=self.habit, date=date.today()).count(), 1
+        )
 
     def test_check_first_day_earns_001(self):
         response = self._check()
@@ -159,6 +178,7 @@ class CheckHabitTest(TestCase):
 
 # ── Uncheck habit ─────────────────────────────────────────────────────────────
 
+
 class UncheckHabitTest(TestCase):
     def setUp(self):
         self.owner = make_user()
@@ -172,7 +192,9 @@ class UncheckHabitTest(TestCase):
         req = self.factory.delete(f"/api/habits/{self.habit.id}/check/")
         uncheck_habit(req, self.habit.id)
 
-        self.assertFalse(HabitLog.objects.filter(habit=self.habit, date=date.today()).exists())
+        self.assertFalse(
+            HabitLog.objects.filter(habit=self.habit, date=date.today()).exists()
+        )
 
     def test_uncheck_subtracts_points(self):
         attr = self.habit.attribute
@@ -195,6 +217,7 @@ class UncheckHabitTest(TestCase):
 
 # ── Streak milestones ─────────────────────────────────────────────────────────
 
+
 class StreakMilestoneTest(TestCase):
     def setUp(self):
         self.owner = make_user()
@@ -205,7 +228,9 @@ class StreakMilestoneTest(TestCase):
         today = date.today()
         for i in range(days, 0, -1):
             d = today - timedelta(days=i)
-            HabitLog.objects.create(habit=self.habit, date=d, points_earned=Decimal("0.01"))
+            HabitLog.objects.create(
+                habit=self.habit, date=d, points_earned=Decimal("0.01")
+            )
 
     def test_day_10_earns_010(self):
         self._seed_logs(9)  # 9 days already logged → streak becomes 10 on check
@@ -228,6 +253,7 @@ class StreakMilestoneTest(TestCase):
 
 # ── Patch and Delete habit ────────────────────────────────────────────────────
 
+
 class PatchDeleteHabitTest(TestCase):
     def setUp(self):
         self.owner = make_user()
@@ -235,14 +261,18 @@ class PatchDeleteHabitTest(TestCase):
         self.factory = RequestFactory()
 
     def test_patch_title(self):
-        req = patch_request(self.factory, f"/api/habits/{self.habit.id}/", {"title": "New title"})
+        req = patch_request(
+            self.factory, f"/api/habits/{self.habit.id}/", {"title": "New title"}
+        )
         response = patch_habit(req, self.habit.id)
         data = json.loads(response.content)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(data["title"], "New title")
 
     def test_patch_is_active(self):
-        req = patch_request(self.factory, f"/api/habits/{self.habit.id}/", {"is_active": False})
+        req = patch_request(
+            self.factory, f"/api/habits/{self.habit.id}/", {"is_active": False}
+        )
         response = patch_habit(req, self.habit.id)
         data = json.loads(response.content)
         self.assertFalse(data["is_active"])
@@ -251,7 +281,8 @@ class PatchDeleteHabitTest(TestCase):
         other = make_user(username="other2")
         foreign_attr = other.attributes.get(name=UserAttribute.AttributeName.VITALITY)
         req = patch_request(
-            self.factory, f"/api/habits/{self.habit.id}/",
+            self.factory,
+            f"/api/habits/{self.habit.id}/",
             {"attribute_id": foreign_attr.id},
         )
         response = patch_habit(req, self.habit.id)
@@ -264,13 +295,16 @@ class PatchDeleteHabitTest(TestCase):
         self.assertFalse(Habit.objects.filter(id=self.habit.id).exists())
 
     def test_delete_removes_logs(self):
-        HabitLog.objects.create(habit=self.habit, date=date.today(), points_earned=Decimal("0.01"))
+        HabitLog.objects.create(
+            habit=self.habit, date=date.today(), points_earned=Decimal("0.01")
+        )
         req = self.factory.delete(f"/api/habits/{self.habit.id}/")
         delete_habit(req, self.habit.id)
         self.assertEqual(HabitLog.objects.filter(habit=self.habit).count(), 0)
 
 
 # ── List habits ───────────────────────────────────────────────────────────────
+
 
 class ListHabitsTest(TestCase):
     def setUp(self):

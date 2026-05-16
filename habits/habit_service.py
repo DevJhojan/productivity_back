@@ -61,6 +61,7 @@ def _resolve_attribute_for_owner(owner_id: int, attribute_id: int | None):
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
+
 def list_habits(request):
     owner_id = request.GET.get("owner_id")
     qs = Habit.objects.select_related("attribute")
@@ -118,7 +119,9 @@ def patch_habit(request, habit_id):
             setattr(habit, field, data[field])
 
     if "attribute_id" in data:
-        attribute, error = _resolve_attribute_for_owner(habit.owner_id, data["attribute_id"])
+        attribute, error = _resolve_attribute_for_owner(
+            habit.owner_id, data["attribute_id"]
+        )
         if error:
             return error
         habit.attribute = attribute
@@ -137,6 +140,7 @@ def delete_habit(request, habit_id):
 
 # ── CHECK / UNCHECK ────────────────────────────────────────────────────────────
 
+
 def check_habit(request, habit_id):
     habit, error = _get_habit_or_404(habit_id)
     if error:
@@ -154,7 +158,9 @@ def check_habit(request, habit_id):
     previous_points = float(owner.points)
 
     with transaction.atomic():
-        HabitLog.objects.create(habit=habit, date=today, points_earned=Decimal(str(earned)))
+        HabitLog.objects.create(
+            habit=habit, date=today, points_earned=Decimal(str(earned))
+        )
         attribute.points = Decimal(attribute.points) + Decimal(str(earned))
         attribute.save(update_fields=["points"])
         new_points = float(owner.recalculate_points_from_attributes())
@@ -187,7 +193,9 @@ def uncheck_habit(request, habit_id):
     owner = habit.owner
 
     with transaction.atomic():
-        new_attr_points = max(Decimal("0.00"), Decimal(attribute.points) - Decimal(log.points_earned))
+        new_attr_points = max(
+            Decimal("0.00"), Decimal(attribute.points) - Decimal(log.points_earned)
+        )
         attribute.points = new_attr_points
         attribute.save(update_fields=["points"])
         log.delete()

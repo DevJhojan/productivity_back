@@ -1,6 +1,6 @@
 import json
 from django.http import JsonResponse
-from .models_users import User
+from .models_users import User, ensure_default_attributes_for_user
 from .users_serializer import user_to_dict
 
 
@@ -17,6 +17,7 @@ def _get_user_or_404(user_id):
     except User.DoesNotExist:
         return None, JsonResponse({"error": "User not found"}, status=404)
 
+
 def list_users():
     users = User.objects.all().order_by("-created_at")
     return JsonResponse([user_to_dict(user) for user in users], safe=False)
@@ -27,7 +28,7 @@ def create_user(request):
     if error:
         return error
 
-    required = ["username", "password", "email","document_type", "document_number"]
+    required = ["username", "password", "email", "document_type", "document_number"]
     missing = [field for field in required if not data.get(field)]
     if missing:
         return JsonResponse(
@@ -57,6 +58,9 @@ def create_user(request):
         birth_date=data.get("birth_date"),
     )
 
+    ensure_default_attributes_for_user(user)
+    user.recalculate_points_from_attributes()
+
     return JsonResponse(user_to_dict(user), status=201)
 
 
@@ -72,6 +76,7 @@ def update_user_partial(user, data):
     user.birth_date = data.get("birth_date", user.birth_date)
     user.save()
     return JsonResponse(user_to_dict(user))
+
 
 def patch_user(user, data):
     if "username" in data:
@@ -94,10 +99,10 @@ def patch_user(user, data):
         user.birth_date = data["birth_date"]
     if "password" in data and data["password"]:
         user.set_password(data["password"])
-    if "points" in data:
-        user.points = data["points"]
     user.save()
+    user.recalculate_points_from_attributes()
     return JsonResponse(user_to_dict(user))
+
 
 def delete_user(user):
     user.delete()

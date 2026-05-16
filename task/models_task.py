@@ -29,6 +29,13 @@ class Task(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tasks"
     )
+    attribute = models.ForeignKey(
+        "users.UserAttribute",
+        on_delete=models.PROTECT,
+        related_name="tasks",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

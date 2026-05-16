@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from funcs.system_levels import LevelSystem
+from users.models_users import User, UserAttribute, ensure_default_attributes_for_user
 from .models_task import Task
 from .task_serializer import task_to_dict
 
@@ -30,12 +31,26 @@ def create_task(request):
     data = json.loads(request.body)
     data = _clean_choices_data(data)  # Normalizamos aquí también
 
+    owner_id = data.get("owner_id")
+    if not owner_id:
+        return JsonResponse({"error": "owner_id is required"}, status=400)
+    if not User.objects.filter(id=owner_id).exists():
+        return JsonResponse({"error": "Owner not found"}, status=404)
+
+    attribute, error = _resolve_attribute_for_owner(
+        owner_id=owner_id,
+        attribute_id=data.get("attribute_id"),
+    )
+    if error:
+        return error
+
     task = Task.objects.create(
         title=data.get("title", ""),
         description=data.get("description", ""),
         status=data.get("status", Task.Status.PENDING),
         priority=data.get("priority", Task.Priority.NOT_IMPORTANT_NOT_URGENT),
-        owner_id=data.get("owner_id"),
+        owner_id=owner_id,
+        attribute=attribute,
     )
     return JsonResponse(task_to_dict(task), status=201)
 
@@ -52,8 +67,61 @@ def _get_points_params_for_task() -> tuple[str, str | None]:
     return ("task", None)
 
 
+def _get_default_attribute_for_owner(owner_id: int) -> UserAttribute:
+    owner = User.objects.get(id=owner_id)
+    ensure_default_attributes_for_user(owner)
+    attribute, _ = UserAttribute.objects.get_or_create(
+        user_id=owner_id,
+        name=UserAttribute.AttributeName.STRENGTH,
+        defaults={"points": Decimal("0.00")},
+    )
+    return attribute
+
+
+def _resolve_attribute_for_owner(owner_id: int, attribute_id: int | None):
+    if not User.objects.filter(id=owner_id).exists():
+        return None, JsonResponse({"error": "Owner not found"}, status=404)
+
+    if attribute_id is None:
+        return _get_default_attribute_for_owner(owner_id), None
+
+    try:
+        attribute = UserAttribute.objects.get(id=attribute_id)
+    except UserAttribute.DoesNotExist:
+        return None, JsonResponse({"error": "Attribute not found"}, status=404)
+
+    if attribute.user_id != owner_id:
+        return (
+            None,
+            JsonResponse(
+                {"error": "Task attribute must belong to task owner"},
+                status=400,
+            ),
+        )
+    return attribute, None
+
+
+def _validate_and_attach_task_attribute(task: Task):
+    attribute, error = _resolve_attribute_for_owner(
+        owner_id=task.owner_id,
+        attribute_id=task.attribute_id,
+    )
+    if error:
+        return error
+    task.attribute = attribute
+    return None
+
+
 def _apply_task_fields(task, data, partial: bool):
-    fields = ["title", "description", "status", "priority", "due_date", "owner_id"]
+    fields = [
+        "title",
+        "description",
+        "status",
+        "priority",
+        "due_date",
+        "owner_id",
+        "attribute_id",
+    ]
 
     if partial:
         for field in fields:
@@ -71,18 +139,26 @@ def _apply_task_fields(task, data, partial: bool):
 def _award_points_to_owner(task) -> dict:
     task.completed_at = timezone.now()
     owner = task.owner
+    attribute = task.attribute
     main_type, goal_subtype = _get_points_params_for_task()
 
-    calc = LevelSystem.complete_task_with_rules(
-        current_points=float(owner.points),
-        main_type=main_type,
-        goal_subtype=goal_subtype,
-    )
+    previous_owner_points = float(owner.points)
+    earned_points = LevelSystem.get_points_from_rules(main_type=main_type)
+    attribute.points = Decimal(attribute.points) + Decimal(str(earned_points))
+    attribute.save(update_fields=["points"])
+    new_owner_points = float(owner.recalculate_points_from_attributes())
 
-    # Convertimos a string -> Decimal para evitar errores de precisión flotante en Postgres
-    owner.points = Decimal(str(calc["total_points"]))
-    owner.save(update_fields=["points"])
-    return calc
+    return {
+        "task_completed": True,
+        "main_type": main_type,
+        "goal_subtype": goal_subtype,
+        "earned_points": earned_points,
+        "total_points": new_owner_points,
+        "level_result": LevelSystem.handle_level_change(
+            current_points=new_owner_points,
+            previous_points=previous_owner_points,
+        ),
+    }
 
 
 def _build_response(task, became_completed, earned_points, level_result) -> dict:
@@ -100,6 +176,9 @@ def _save_task_with_level_logic(task, data, partial: bool):
 
     previous_status = task.status
     _apply_task_fields(task, data, partial=partial)
+    validation_error = _validate_and_attach_task_attribute(task)
+    if validation_error:
+        return validation_error
 
     # Ahora sí: "COMPLETED" == "COMPLETED" dará True de manera consistente
     became_completed = (

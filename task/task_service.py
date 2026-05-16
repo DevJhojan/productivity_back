@@ -11,6 +11,13 @@ from .models_task import Task
 from .task_serializer import task_to_dict
 
 
+def _load_json(request):
+    try:
+        return json.loads(request.body or "{}"), None
+    except json.JSONDecodeError:
+        return None, JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+
 def list_tasks():
     tasks = Task.objects.all()
     return JsonResponse([task_to_dict(task) for task in tasks], safe=False)
@@ -28,7 +35,9 @@ def _clean_choices_data(data: dict) -> dict:
 
 
 def create_task(request):
-    data = json.loads(request.body)
+    data, error = _load_json(request)
+    if error:
+        return error
     data = _clean_choices_data(data)  # Normalizamos aquí también
 
     owner_id = data.get("owner_id")

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "task",
     "users",
     "habits",
+    "goals",
 ]
 
 AUTH_USER_MODEL = "users.User"

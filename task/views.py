@@ -8,6 +8,7 @@ from .task_service import (
     get_task_or_404,
     update_task,
     patch_task,
+    change_task_status,
     delete_task,
     _load_json,
 )
@@ -41,4 +42,14 @@ def task_detail(request, task_id):
         return patch_task(task, data)
     if request.method == "DELETE":
         return delete_task(task)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+def task_status_view(request, task_id):
+    task = get_task_or_404(task_id)
+    if not task:
+        return JsonResponse({"error": "Task not found"}, status=404)
+    if request.method == "POST":
+        return change_task_status(request, task)
     return JsonResponse({"error": "Method not allowed"}, status=405)

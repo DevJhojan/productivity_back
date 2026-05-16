@@ -141,6 +141,69 @@ def patch_goal(request, goal_id):
     return _save_goal_with_level_logic(goal, data, partial=True)
 
 
+def change_goal_status(request, goal):
+    data, error = _load_json(request)
+    if error:
+        return error
+
+    new_status = str(data.get("status", "")).strip().upper()
+    valid = [s.value for s in Goal.Status]
+    if new_status not in valid:
+        return JsonResponse(
+            {"error": f"Invalid status. Valid values: {valid}"}, status=400
+        )
+
+    previous_status = goal.status
+    if previous_status == new_status:
+        return JsonResponse(goal_to_dict(goal))
+
+    attribute = goal.attribute
+    owner = goal.owner
+    previous_owner_points = float(owner.points)
+    earned_points = None
+
+    going_to_completed = (
+        previous_status != Goal.Status.COMPLETED and new_status == Goal.Status.COMPLETED
+    )
+    leaving_completed = (
+        previous_status == Goal.Status.COMPLETED and new_status != Goal.Status.COMPLETED
+    )
+
+    with transaction.atomic():
+        if going_to_completed:
+            points = LevelSystem.get_points_from_rules(
+                main_type="goal", goal_subtype=goal.goal_subtype
+            )
+            attribute.points = Decimal(attribute.points) + Decimal(str(points))
+            attribute.save(update_fields=["points"])
+            goal.completed_at = timezone.now()
+            earned_points = points
+        elif leaving_completed:
+            points = LevelSystem.get_points_from_rules(
+                main_type="goal", goal_subtype=goal.goal_subtype
+            )
+            attribute.points = max(
+                Decimal("0.00"), Decimal(attribute.points) - Decimal(str(points))
+            )
+            attribute.save(update_fields=["points"])
+            goal.completed_at = None
+            earned_points = -points
+
+        goal.status = new_status
+        goal.save()
+        new_owner_points = float(owner.recalculate_points_from_attributes())
+
+    response = goal_to_dict(goal)
+    if earned_points is not None:
+        response["earned_points"] = earned_points
+        response["owner_points"] = new_owner_points
+        response["level_result"] = LevelSystem.handle_level_change(
+            current_points=new_owner_points,
+            previous_points=previous_owner_points,
+        )
+    return JsonResponse(response)
+
+
 def delete_goal(request, goal_id):
     goal, error = _get_goal_or_404(goal_id)
     if error:

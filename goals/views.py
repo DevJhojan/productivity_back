@@ -7,6 +7,8 @@ from .goal_service import (
     get_goal,
     patch_goal,
     delete_goal,
+    _get_goal_or_404,
+    change_goal_status,
 )
 
 
@@ -27,4 +29,14 @@ def goal_detail_view(request, goal_id):
         return patch_goal(request, goal_id)
     if request.method == "DELETE":
         return delete_goal(request, goal_id)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+def goal_status_view(request, goal_id):
+    goal, error = _get_goal_or_404(goal_id)
+    if error:
+        return error
+    if request.method == "POST":
+        return change_goal_status(request, goal)
     return JsonResponse({"error": "Method not allowed"}, status=405)

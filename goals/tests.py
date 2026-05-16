@@ -7,6 +7,7 @@ from users.models_users import User, UserAttribute
 from .models_goal import Goal
 from .goal_service import (
     create_goal,
+    change_goal_status,
     get_goal,
     patch_goal,
     delete_goal,
@@ -328,3 +329,85 @@ class ListGoalsTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(len(data), 2)
         self.assertTrue(all(g["owner_id"] == self.owner.id for g in data))
+
+
+class GoalStatusEndpointTest(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _change(self, goal, status: str):
+        request = self.factory.post(
+            f"/api/goals/{goal.id}/status/",
+            json.dumps({"status": status}),
+            content_type="application/json",
+        )
+        return change_goal_status(request, goal)
+
+    def test_pending_to_completed_weekly_adds_100(self):
+        owner = make_user(username="g_status_weekly")
+        goal = make_goal(owner, goal_subtype="weekly_goal")
+
+        response = self._change(goal, "COMPLETED")
+        data = json.loads(response.content)
+        goal.refresh_from_db()
+        goal.attribute.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data["earned_points"], 1.00)
+        self.assertEqual(goal.attribute.points, Decimal("1.00"))
+
+    def test_completed_to_pending_weekly_subtracts_100(self):
+        owner = make_user(username="g_status_back")
+        goal = make_goal(owner, goal_subtype="weekly_goal")
+
+        self._change(goal, "COMPLETED")
+        response = self._change(goal, "PENDING")
+        data = json.loads(response.content)
+        goal.refresh_from_db()
+        goal.attribute.refresh_from_db()
+
+        self.assertEqual(data["earned_points"], -1.00)
+        self.assertEqual(goal.attribute.points, Decimal("0.00"))
+        self.assertIsNone(goal.completed_at)
+
+    def test_completed_to_in_progress_monthly_subtracts_500(self):
+        owner = make_user(username="g_status_monthly")
+        goal = make_goal(owner, goal_subtype="monthly_project")
+
+        self._change(goal, "COMPLETED")
+        self._change(goal, "IN_PROGRESS")
+        goal.refresh_from_db()
+        goal.attribute.refresh_from_db()
+
+        self.assertEqual(goal.attribute.points, Decimal("0.00"))
+        self.assertEqual(goal.status, Goal.Status.IN_PROGRESS)
+
+    def test_pending_to_in_progress_has_no_points(self):
+        owner = make_user(username="g_status_np")
+        goal = make_goal(owner, goal_subtype="weekly_goal")
+
+        response = self._change(goal, "IN_PROGRESS")
+        data = json.loads(response.content)
+        goal.refresh_from_db()
+        goal.attribute.refresh_from_db()
+
+        self.assertNotIn("earned_points", data)
+        self.assertEqual(goal.attribute.points, Decimal("0.00"))
+
+    def test_invalid_status_returns_400(self):
+        owner = make_user(username="g_status_bad")
+        goal = make_goal(owner)
+        response = self._change(goal, "DONE")
+        self.assertEqual(response.status_code, 400)
+
+    def test_cycle_pending_completed_in_progress_completed_no_double(self):
+        owner = make_user(username="g_status_cycle")
+        goal = make_goal(owner, goal_subtype="weekly_goal")
+
+        self._change(goal, "COMPLETED")
+        self._change(goal, "IN_PROGRESS")
+        self._change(goal, "COMPLETED")
+        goal.refresh_from_db()
+        goal.attribute.refresh_from_db()
+
+        self.assertEqual(goal.attribute.points, Decimal("1.00"))

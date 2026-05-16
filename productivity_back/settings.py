@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'task',
     'users',
+    'habits',
 ]
 
 AUTH_USER_MODEL = "users.User"

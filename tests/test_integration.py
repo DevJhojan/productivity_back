@@ -16,7 +16,9 @@ def make_user(username="player", document_number="100", points=0.0):
     )
 
 
-def make_task(owner, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT, status=Task.Status.PENDING):
+def make_task(
+    owner, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT, status=Task.Status.PENDING
+):
     return Task.objects.create(
         title="Integration task",
         status=status,
@@ -30,7 +32,9 @@ class CompletingTaskAwardsPointsTest(TestCase):
 
     def setUp(self):
         self.user = make_user(points=0.0)
-        self.task = make_task(self.user, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT)
+        self.task = make_task(
+            self.user, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT
+        )
 
     def test_patch_complete_increments_user_points(self):
         patch_task(self.task, {"status": "COMPLETED"})
@@ -39,7 +43,9 @@ class CompletingTaskAwardsPointsTest(TestCase):
         self.assertGreater(float(self.user.points), 0.0)
 
     def test_put_complete_increments_user_points(self):
-        update_task(self.task, {"title": "T", "status": "COMPLETED", "owner_id": self.user.id})
+        update_task(
+            self.task, {"title": "T", "status": "COMPLETED", "owner_id": self.user.id}
+        )
 
         self.user.refresh_from_db()
         self.assertGreater(float(self.user.points), 0.0)

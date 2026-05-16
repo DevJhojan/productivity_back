@@ -23,4 +23,5 @@ urlpatterns = [
     path("api/", include("task.urls")),
     path("api/", include("users.urls")),
     path("api/habits/", include("habits.urls")),
+    path("api/goals/", include("goals.urls")),
 ]

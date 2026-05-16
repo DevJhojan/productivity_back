@@ -1,134 +1,98 @@
 # Productivity Back
 
-Backend API para gestión de tareas y usuarios, desarrollado con Django y PostgreSQL.
+Backend API de productividad y gamificacion, construido con Django y PostgreSQL.
 
 ## Resumen
 
-Este proyecto expone una API REST base para:
+La API actualmente soporta:
 
-- Crear, consultar, actualizar y eliminar tareas.
-- Asociar tareas a un usuario propietario.
-- Sentar la base para registro y autenticación de usuarios con modelo personalizado.
+- Gestion de usuarios con modelo personalizado.
+- Gestion de atributos por usuario: Strength, Vitality, Agility, Intelligence, Perception.
+- Gestion de tareas con asignacion de atributo y puntos por completado.
+- Gestion de habitos con check diario y streak.
+- Gestion de goals con subtype y puntos por tipo.
+- Cambio dedicado de estado para task y goals con suma/resta de puntos al entrar/salir de COMPLETED.
 
-Actualmente, el módulo de tareas está publicado en rutas API. El módulo de usuarios está en desarrollo y aún no está habilitado en el enrutamiento principal.
+## Stack
 
-## Stack Tecnológico
-
-- Python 3.x
+- Python 3.14+
 - Django 6.x
 - PostgreSQL
 
 ## Arquitectura
 
-El proyecto usa una estructura modular por aplicación de Django:
+El proyecto sigue una estructura modular por app y una separacion por capas:
 
-- productivity_back: configuración global del proyecto.
-- task: dominio de tareas (modelo, serialización, servicio y vistas).
-- users: dominio de usuarios (modelo personalizado y capa de servicios en construcción).
+- serializer: transforma entidades a JSON.
+- service: concentra logica de negocio.
+- views: manejo HTTP y despacho por metodo.
+- urls: exposicion de endpoints.
 
-### Patrón aplicado en task
+Apps principales:
 
-El módulo task ya separa responsabilidades:
+- users
+- task
+- habits
+- goals
 
-- task_serializer.py: serialización de entidades a diccionario JSON.
-- task_service.py: lógica de negocio y operaciones CRUD.
-- views.py: control HTTP y manejo de métodos.
+## Configuracion local
 
-Este patrón facilita pruebas, mantenimiento y escalabilidad.
+1. Crear y activar entorno virtual.
 
-## Estructura del proyecto
-
-```text
-manage.py
-productivity_back/
-  __init__.py
-  asgi.py
-  settings.py
-  urls.py
-  wsgi.py
-task/
-  admin.py
-  apps.py
-  models.py
-  task_serializer.py
-  task_service.py
-  urls.py
-  views.py
-  migrations/
-users/
-  admin.py
-  apps.py
-  models.py
-  users_serializer.py
-  users_service.py
-  views.py
-  migrations/
-```
-
-## Configuración del entorno
-
-### 1) Clonar e instalar dependencias
-
-```bash
-git clone <tu-repo>
-cd productivity_back
-python -m venv .venv
-```
-
-Activar entorno virtual:
-
-- Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-- Linux/macOS:
+Linux/macOS:
 
 ```bash
+python -m venv .venv
 source .venv/bin/activate
 ```
 
-Instalar paquetes:
+2. Instalar dependencias.
 
 ```bash
 pip install django psycopg2-binary
 ```
 
-### 2) Configurar base de datos PostgreSQL
+3. Verificar base de datos PostgreSQL.
 
-En settings.py está configurada una base PostgreSQL local. Asegura que exista:
-
-- Base de datos: Productividad
-- Usuario: postgres
+- DB: Productividad
 - Puerto: 5432
 
-### 3) Migraciones
+4. Ejecutar migraciones.
 
 ```bash
-python manage.py makemigrations
-python manage.py migrate
+py manage.py makemigrations
+py manage.py migrate
 ```
 
-### 4) Ejecutar servidor
+5. Levantar servidor.
 
 ```bash
-python manage.py runserver
+py manage.py runserver
 ```
 
-Servidor local por defecto:
+Base local:
 
 - http://127.0.0.1:8000/
 
-## API disponible
+## Endpoints API
 
-Base URL:
+### Users
 
-- /api/
+- GET /api/users/
+- POST /api/users/
+- GET /api/users/{user_id}/
+- PUT /api/users/{user_id}/
+- PATCH /api/users/{user_id}/
+- DELETE /api/users/{user_id}/
 
-### Tareas
-
-Rutas activas:
+### Tasks
 
 - GET /api/tasks/
 - POST /api/tasks/
@@ -136,83 +100,101 @@ Rutas activas:
 - PUT /api/tasks/{task_id}/
 - PATCH /api/tasks/{task_id}/
 - DELETE /api/tasks/{task_id}/
+- POST /api/tasks/{task_id}/status/
 
-#### Ejemplo de creación de tarea
+`POST /api/tasks/{task_id}/status/` recibe:
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/tasks/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Preparar demo",
-    "description": "Demo semanal del equipo",
-    "status": "PENDING",
-    "priority": "IMPORTANT_URGENT",
-    "owner_id": 1
-  }'
+```json
+{
+  "status": "PENDING | IN_PROGRESS | COMPLETED"
+}
 ```
 
-#### Valores válidos para status
+Regla de puntos para status:
+
+- No COMPLETED -> COMPLETED: suma 0.10 al atributo asociado.
+- COMPLETED -> no COMPLETED: resta 0.10 al atributo asociado.
+- Entre PENDING e IN_PROGRESS: no modifica puntos.
+
+### Habits
+
+- GET /api/habits/
+- POST /api/habits/
+- GET /api/habits/{habit_id}/
+- PATCH /api/habits/{habit_id}/
+- DELETE /api/habits/{habit_id}/
+- POST /api/habits/{habit_id}/check/
+- DELETE /api/habits/{habit_id}/check/
+
+### Goals
+
+- GET /api/goals/
+- POST /api/goals/
+- GET /api/goals/{goal_id}/
+- PATCH /api/goals/{goal_id}/
+- DELETE /api/goals/{goal_id}/
+- POST /api/goals/{goal_id}/status/
+
+`POST /api/goals/{goal_id}/status/` recibe:
+
+```json
+{
+  "status": "PENDING | IN_PROGRESS | COMPLETED"
+}
+```
+
+Regla de puntos para status:
+
+- No COMPLETED -> COMPLETED: suma segun goal_subtype.
+- COMPLETED -> no COMPLETED: resta esos mismos puntos.
+- Entre PENDING e IN_PROGRESS: no modifica puntos.
+
+Puntos por goal_subtype:
+
+- weekly_goal: 1.00
+- monthly_project: 5.00
+- annual_project: 15.00
+- five_year_project: 30.00
+
+## Valores validos
+
+Status:
 
 - PENDING
 - IN_PROGRESS
 - COMPLETED
 
-#### Valores válidos para priority
+Priority (task y goals):
 
 - IMPORTANT_URGENT
 - IMPORTANT_NOT_URGENT
 - NOT_IMPORTANT_URGENT
 - NOT_IMPORTANT_NOT_URGENT
 
-## Modelos principales
+Goal subtype:
 
-### Task
+- weekly_goal
+- monthly_project
+- annual_project
+- five_year_project
 
-Campos relevantes:
+## Pruebas
 
-- title
-- description
-- status
-- priority
-- due_date
-- completed_at
-- owner (FK a AUTH_USER_MODEL)
-- created_at
-- updated_at
+Ejecutar suite completa:
 
-### User (módulo users)
+```bash
+py manage.py test --verbosity=1
+```
 
-El módulo users define:
+Ejecutar modulos puntuales:
 
-- Person abstracto con información personal y tipo de documento (choices).
-- User heredando de AbstractUser y Person.
+```bash
+py manage.py test task goals habits users --verbosity=2
+```
 
-Nota: aunque la base del modelo existe, esta app aún no está registrada en INSTALLED_APPS ni conectada en urls.py del proyecto principal.
+## Notas de seguridad
 
-## Estado actual y próximos pasos
-
-### Completado
-
-- API CRUD de tareas operativa.
-- Separación básica por capas en task.
-- Modelo de usuario personalizado en construcción.
-
-### Recomendado para continuar
-
-1. Registrar la app users en INSTALLED_APPS.
-2. Definir AUTH_USER_MODEL con el modelo de usuario personalizado.
-3. Crear users/urls.py e incluirlo en el enrutador principal.
-4. Implementar endpoints de registro y login.
-5. Agregar pruebas para task y users.
-6. Mover credenciales de base de datos a variables de entorno.
-
-## Seguridad y buenas prácticas
-
-- No usar credenciales hardcodeadas en producción.
-- Desactivar DEBUG en entornos productivos.
+- No usar credenciales hardcodeadas en produccion.
+- Desactivar DEBUG en produccion.
 - Configurar ALLOWED_HOSTS.
-- Usar variables de entorno para SECRET_KEY y DATABASES.
-
-## Licencia
-
-Define aquí la licencia del proyecto, por ejemplo MIT.
+- Mover SECRET_KEY y DATABASES a variables de entorno.

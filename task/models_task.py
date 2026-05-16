@@ -4,9 +4,9 @@ from django.db import models
 
 class Task(models.Model):
     class Status(models.TextChoices):
-        PENDING = "PENDING", "Pending"
-        IN_PROGRESS = "IN_PROGRESS", "In Progress"
-        COMPLETED = "COMPLETED", "Completed"
+        PENDING = "PENDING", 
+        IN_PROGRESS = "IN_PROGRESS", 
+        COMPLETED = "COMPLETED" 
 
     class Priority(models.TextChoices):
         IMPORTANT_URGENT = "IMPORTANT_URGENT", "important and urgent"

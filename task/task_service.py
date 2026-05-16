@@ -101,7 +101,7 @@ def _save_task_with_level_logic(task, data, partial: bool):
 
     return _build_response(task, became_completed, earned_points, level_result)
 
-def update_task_partial(task, data):
+def update_task(task, data):
     return _save_task_with_level_logic(task, data, partial=False)
 
 def patch_task(task, data):

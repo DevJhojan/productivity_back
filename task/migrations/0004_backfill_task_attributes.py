@@ -23,7 +23,6 @@ def backwards_func(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("users", "0003_backfill_user_attributes"),
         ("task", "0003_task_attribute"),

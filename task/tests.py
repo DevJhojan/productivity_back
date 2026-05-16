@@ -1,7 +1,7 @@
 import json
 from django.test import TestCase, RequestFactory
-from users.models import User
-from .models import Task
+from users.models_users import User
+from .models_task import Task
 from .task_service import (
     create_task,
     get_task_or_404,

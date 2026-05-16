@@ -1,7 +1,7 @@
 import json
 from django.test import TestCase
-from users.models import User
-from task.models import Task
+from users.models_users import User
+from task.models_task import Task
 from task.task_service import patch_task, update_task
 from funcs.system_levels import LevelSystem
 

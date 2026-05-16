@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Task
+from .models_task import Task
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):

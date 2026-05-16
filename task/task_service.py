@@ -1,11 +1,12 @@
+# task_service.py
 import json
-from operator import le
+from decimal import Decimal  # Asegura una inserción limpia en PostgreSQL
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 
 from funcs.system_levels import LevelSystem
-from .models import Task
+from .models_task import Task
 from .task_serializer import task_to_dict
 
 
@@ -14,8 +15,21 @@ def list_tasks():
     return JsonResponse([task_to_dict(task) for task in tasks], safe=False)
 
 
+# --- NUEVA FUNCIÓN HELPER PARA NORMALIZAR TEXTCHOICES ---
+def _clean_choices_data(data: dict) -> dict:
+    """Convierte campos de opciones a mayúsculas para que coincidan con TextChoices."""
+    cleaned = data.copy()
+    if "status" in cleaned and isinstance(cleaned["status"], str):
+        cleaned["status"] = cleaned["status"].upper()
+    if "priority" in cleaned and isinstance(cleaned["priority"], str):
+        cleaned["priority"] = cleaned["priority"].upper()
+    return cleaned
+
+
 def create_task(request):
     data = json.loads(request.body)
+    data = _clean_choices_data(data)  # Normalizamos aquí también
+
     task = Task.objects.create(
         title=data.get("title", ""),
         description=data.get("description", ""),
@@ -43,7 +57,6 @@ def _map_task_type(task: Task) -> str:
     return mapping.get(task.priority, "daily_action")
 
 
-
 def _apply_task_fields(task, data, partial: bool):
     fields = ["title", "description", "status", "priority", "due_date", "owner_id"]
 
@@ -63,11 +76,14 @@ def _apply_task_fields(task, data, partial: bool):
 def _award_points_to_owner(task) -> dict:
     task.completed_at = timezone.now()
     owner = task.owner
+
     calc = LevelSystem.complete_task_with_rules(
         current_points=float(owner.points),
         task_type=_map_task_type(task),
     )
-    owner.points = calc["total_points"]
+
+    # Convertimos a string -> Decimal para evitar errores de precisión flotante en Postgres
+    owner.points = Decimal(str(calc["total_points"]))
     owner.save(update_fields=["points"])
     return calc
 
@@ -80,10 +96,15 @@ def _build_response(task, became_completed, earned_points, level_result) -> dict
         response["owner_points"] = float(task.owner.points)
     return JsonResponse(response)
 
+
 def _save_task_with_level_logic(task, data, partial: bool):
+    # MANDATORIO: Limpiamos y normalizamos los strings de estado/prioridad antes de evaluar
+    data = _clean_choices_data(data)
+
     previous_status = task.status
     _apply_task_fields(task, data, partial=partial)
 
+    # Ahora sí: "COMPLETED" == "COMPLETED" dará True de manera consistente
     became_completed = (
         previous_status != Task.Status.COMPLETED
         and task.status == Task.Status.COMPLETED
@@ -101,11 +122,14 @@ def _save_task_with_level_logic(task, data, partial: bool):
 
     return _build_response(task, became_completed, earned_points, level_result)
 
+
 def update_task(task, data):
     return _save_task_with_level_logic(task, data, partial=False)
 
+
 def patch_task(task, data):
     return _save_task_with_level_logic(task, data, partial=True)
+
 
 def delete_task(task):
     task.delete()

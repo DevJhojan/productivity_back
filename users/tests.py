@@ -1,6 +1,6 @@
 import json
 from django.test import TestCase, RequestFactory
-from .models import User
+from .models_users import User
 from .users_service import (
     create_user,
     update_user_partial,

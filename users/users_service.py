@@ -1,6 +1,6 @@
 import json
 from django.http import JsonResponse
-from .models import User
+from .models_users import User
 from .users_serializer import user_to_dict
 
 

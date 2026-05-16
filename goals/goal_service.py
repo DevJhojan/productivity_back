@@ -72,6 +72,7 @@ def _clean_choices_data(data: dict) -> dict:
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
+
 def list_goals(request):
     owner_id = request.GET.get("owner_id")
     qs = Goal.objects.select_related("attribute")
@@ -150,6 +151,7 @@ def delete_goal(request, goal_id):
 
 # ── Points logic ───────────────────────────────────────────────────────────────
 
+
 def _award_points_to_owner(goal) -> dict:
     goal.completed_at = timezone.now()
     owner = goal.owner
@@ -175,7 +177,14 @@ def _award_points_to_owner(goal) -> dict:
 
 
 def _apply_goal_fields(goal, data: dict, partial: bool):
-    patchable = ["title", "description", "priority", "goal_subtype", "status", "due_date"]
+    patchable = [
+        "title",
+        "description",
+        "priority",
+        "goal_subtype",
+        "status",
+        "due_date",
+    ]
     if partial:
         for field in patchable:
             if field in data:
@@ -199,7 +208,9 @@ def _save_goal_with_level_logic(goal, data: dict, partial: bool):
 
     # Resolve attribute change if requested
     if "attribute_id" in data:
-        attribute, error = _resolve_attribute_for_owner(goal.owner_id, data["attribute_id"])
+        attribute, error = _resolve_attribute_for_owner(
+            goal.owner_id, data["attribute_id"]
+        )
         if error:
             return error
         goal.attribute = attribute

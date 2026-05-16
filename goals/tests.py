@@ -16,6 +16,7 @@ from .goal_service import (
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def make_user(username="goaluser", points=0.0):
     return User.objects.create_user(
         username=username,
@@ -26,7 +27,9 @@ def make_user(username="goaluser", points=0.0):
     )
 
 
-def make_goal(owner, goal_subtype="weekly_goal", attribute=None, status=Goal.Status.PENDING):
+def make_goal(
+    owner, goal_subtype="weekly_goal", attribute=None, status=Goal.Status.PENDING
+):
     if attribute is None:
         attribute = owner.attributes.get(name=UserAttribute.AttributeName.STRENGTH)
     return Goal.objects.create(
@@ -48,71 +51,100 @@ def patch_request(factory, path, body):
 
 # ── Create goal ───────────────────────────────────────────────────────────────
 
+
 class CreateGoalTest(TestCase):
     def setUp(self):
         self.owner = make_user()
         self.factory = RequestFactory()
 
     def test_creates_goal_with_default_attribute(self):
-        req = post_request(self.factory, "/api/goals/", {
-            "owner_id": self.owner.id,
-            "title": "Finish book",
-            "goal_subtype": "weekly_goal",
-        })
+        req = post_request(
+            self.factory,
+            "/api/goals/",
+            {
+                "owner_id": self.owner.id,
+                "title": "Finish book",
+                "goal_subtype": "weekly_goal",
+            },
+        )
         response = create_goal(req)
         self.assertEqual(response.status_code, 201)
         data = json.loads(response.content)
         self.assertEqual(data["title"], "Finish book")
         self.assertEqual(data["goal_subtype"], "weekly_goal")
-        self.assertEqual(data["attribute"]["name"], UserAttribute.AttributeName.STRENGTH)
+        self.assertEqual(
+            data["attribute"]["name"], UserAttribute.AttributeName.STRENGTH
+        )
 
     def test_creates_goal_with_explicit_attribute(self):
         attr = self.owner.attributes.get(name=UserAttribute.AttributeName.INTELLIGENCE)
-        req = post_request(self.factory, "/api/goals/", {
-            "owner_id": self.owner.id,
-            "title": "Learn Django",
-            "goal_subtype": "monthly_project",
-            "attribute_id": attr.id,
-        })
+        req = post_request(
+            self.factory,
+            "/api/goals/",
+            {
+                "owner_id": self.owner.id,
+                "title": "Learn Django",
+                "goal_subtype": "monthly_project",
+                "attribute_id": attr.id,
+            },
+        )
         response = create_goal(req)
         data = json.loads(response.content)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(data["attribute"]["name"], UserAttribute.AttributeName.INTELLIGENCE)
+        self.assertEqual(
+            data["attribute"]["name"], UserAttribute.AttributeName.INTELLIGENCE
+        )
 
     def test_create_without_goal_subtype_returns_400(self):
-        req = post_request(self.factory, "/api/goals/", {
-            "owner_id": self.owner.id,
-            "title": "No subtype",
-        })
+        req = post_request(
+            self.factory,
+            "/api/goals/",
+            {
+                "owner_id": self.owner.id,
+                "title": "No subtype",
+            },
+        )
         response = create_goal(req)
         self.assertEqual(response.status_code, 400)
 
     def test_create_with_invalid_goal_subtype_returns_400(self):
-        req = post_request(self.factory, "/api/goals/", {
-            "owner_id": self.owner.id,
-            "title": "Bad subtype",
-            "goal_subtype": "invalid_type",
-        })
+        req = post_request(
+            self.factory,
+            "/api/goals/",
+            {
+                "owner_id": self.owner.id,
+                "title": "Bad subtype",
+                "goal_subtype": "invalid_type",
+            },
+        )
         response = create_goal(req)
         self.assertEqual(response.status_code, 400)
 
     def test_create_without_title_returns_400(self):
-        req = post_request(self.factory, "/api/goals/", {
-            "owner_id": self.owner.id,
-            "goal_subtype": "weekly_goal",
-        })
+        req = post_request(
+            self.factory,
+            "/api/goals/",
+            {
+                "owner_id": self.owner.id,
+                "goal_subtype": "weekly_goal",
+            },
+        )
         response = create_goal(req)
         self.assertEqual(response.status_code, 400)
 
     def test_cross_owner_attribute_returns_400(self):
         other = make_user(username="other_goal")
         foreign_attr = other.attributes.get(name=UserAttribute.AttributeName.STRENGTH)
-        req = post_request(self.factory, "/api/goals/", {
-            "owner_id": self.owner.id,
-            "title": "Bad attr",
-            "goal_subtype": "weekly_goal",
-            "attribute_id": foreign_attr.id,
-        })
+        req = post_request(
+            self.factory,
+            "/api/goals/",
+            {
+                "owner_id": self.owner.id,
+                "title": "Bad attr",
+                "goal_subtype": "weekly_goal",
+                "attribute_id": foreign_attr.id,
+            },
+        )
         response = create_goal(req)
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
@@ -121,12 +153,15 @@ class CreateGoalTest(TestCase):
 
 # ── Complete goal — points per subtype ────────────────────────────────────────
 
+
 class CompleteGoalPointsTest(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
     def _complete_goal(self, owner, goal):
-        req = patch_request(self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"})
+        req = patch_request(
+            self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"}
+        )
         return patch_goal(req, goal.id), owner, goal
 
     def test_weekly_goal_earns_100(self):
@@ -182,7 +217,9 @@ class CompleteGoalPointsTest(TestCase):
         owner = make_user(username="u_recalc")
         goal = make_goal(owner, goal_subtype="weekly_goal")
 
-        req = patch_request(self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"})
+        req = patch_request(
+            self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"}
+        )
         patch_goal(req, goal.id)
 
         owner.refresh_from_db()
@@ -193,7 +230,9 @@ class CompleteGoalPointsTest(TestCase):
         owner = make_user(username="u_ts")
         goal = make_goal(owner, goal_subtype="weekly_goal")
 
-        req = patch_request(self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"})
+        req = patch_request(
+            self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"}
+        )
         patch_goal(req, goal.id)
 
         goal.refresh_from_db()
@@ -203,7 +242,9 @@ class CompleteGoalPointsTest(TestCase):
         owner = make_user(username="u_lvl")
         goal = make_goal(owner, goal_subtype="weekly_goal")
 
-        req = patch_request(self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"})
+        req = patch_request(
+            self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"}
+        )
         response = patch_goal(req, goal.id)
         data = json.loads(response.content)
 
@@ -212,12 +253,16 @@ class CompleteGoalPointsTest(TestCase):
 
     def test_already_completed_does_not_award_again(self):
         owner = make_user(username="u_double")
-        goal = make_goal(owner, goal_subtype="weekly_goal", status=Goal.Status.COMPLETED)
+        goal = make_goal(
+            owner, goal_subtype="weekly_goal", status=Goal.Status.COMPLETED
+        )
         attr = goal.attribute
         attr.points = Decimal("1.00")
         attr.save()
 
-        req = patch_request(self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"})
+        req = patch_request(
+            self.factory, f"/api/goals/{goal.id}/", {"status": "COMPLETED"}
+        )
         patch_goal(req, goal.id)
 
         attr.refresh_from_db()
@@ -227,7 +272,9 @@ class CompleteGoalPointsTest(TestCase):
         owner = make_user(username="u_notitle")
         goal = make_goal(owner, goal_subtype="weekly_goal")
 
-        req = patch_request(self.factory, f"/api/goals/{goal.id}/", {"title": "New title"})
+        req = patch_request(
+            self.factory, f"/api/goals/{goal.id}/", {"title": "New title"}
+        )
         response = patch_goal(req, goal.id)
         data = json.loads(response.content)
 
@@ -237,6 +284,7 @@ class CompleteGoalPointsTest(TestCase):
 
 
 # ── Delete goal ───────────────────────────────────────────────────────────────
+
 
 class DeleteGoalTest(TestCase):
     def setUp(self):
@@ -257,6 +305,7 @@ class DeleteGoalTest(TestCase):
 
 
 # ── List goals ────────────────────────────────────────────────────────────────
+
 
 class ListGoalsTest(TestCase):
     def setUp(self):

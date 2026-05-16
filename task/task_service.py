@@ -43,21 +43,21 @@ def _map_task_type(task: Task) -> str:
     return mapping.get(task.priority, "daily_action")
 
 
-def update_task(task, data):
-    task.title = data.get("title", task.title)
-    task.description = data.get("description", task.description)
-    task.status = data.get("status", task.status)
-    task.priority = data.get("priority", task.priority)
-    task.due_date = data.get("due_date", task.due_date)
-    task.owner_id = data.get("owner_id", task.owner_id)
-    task.save()
-    return JsonResponse(task_to_dict(task))
 
-def _apply_task_fields(task, data):
+def _apply_task_fields(task, data, partial: bool):
     fields = ["title", "description", "status", "priority", "due_date", "owner_id"]
-    for field in fields:
-        if field in data:
-            setattr(task, field, data[field])
+
+    if partial:
+        for field in fields:
+            if field in data:
+                setattr(task, field, data[field])
+    else:
+        task.title = data.get("title", task.title)
+        task.description = data.get("description", task.description)
+        task.status = data.get("status", task.status)
+        task.priority = data.get("priority", task.priority)
+        task.due_date = data.get("due_date", task.due_date)
+        task.owner_id = data.get("owner_id", task.owner_id)
 
 
 def _award_points_to_owner(task) -> dict:
@@ -72,21 +72,20 @@ def _award_points_to_owner(task) -> dict:
     return calc
 
 
-def _build_patch_response(task, became_completed, earned_points, level_result) -> dict:
+def _build_response(task, became_completed, earned_points, level_result) -> dict:
     response = task_to_dict(task)
     if became_completed:
         response["earned_points"] = earned_points
         response["level_result"] = level_result
         response["owner_points"] = float(task.owner.points)
-    return response
+    return JsonResponse(response)
 
+def _save_task_with_level_logic(task, data, partial: bool):
+    previous_status = task.status
+    _apply_task_fields(task, data, partial=partial)
 
-def patch_task(task, data):
-    previus_status = task.status
-    _apply_task_fields(task, data)
-
-    became_complete = (
-        previus_status != Task.Status.COMPLETED
+    became_completed = (
+        previous_status != Task.Status.COMPLETED
         and task.status == Task.Status.COMPLETED
     )
 
@@ -94,12 +93,19 @@ def patch_task(task, data):
     level_result = None
 
     with transaction.atomic():
-        if became_complete:
+        if became_completed:
             calc = _award_points_to_owner(task)
             earned_points = calc["earned_points"]
             level_result = calc["level_result"]
         task.save()
-    return JsonResponse(_build_patch_response(task, became_complete, earned_points, level_result))
+
+    return _build_response(task, became_completed, earned_points, level_result)
+
+def update_task_partial(task, data):
+    return _save_task_with_level_logic(task, data, partial=False)
+
+def patch_task(task, data):
+    return _save_task_with_level_logic(task, data, partial=True)
 
 def delete_task(task):
     task.delete()

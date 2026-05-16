@@ -47,14 +47,9 @@ def get_task_or_404(task_id):
         return None
 
 
-def _map_task_type(task: Task) -> str:
-    mapping = {
-        Task.Priority.IMPORTANT_URGENT: "weekly_goal",
-        Task.Priority.IMPORTANT_NOT_URGENT: "monthly_project",
-        Task.Priority.NOT_IMPORTANT_URGENT: "daily_action",
-        Task.Priority.NOT_IMPORTANT_NOT_URGENT: "daily_action",
-    }
-    return mapping.get(task.priority, "daily_action")
+def _get_points_params_for_task() -> tuple[str, str | None]:
+    # Task model always represents a simple task.
+    return ("task", None)
 
 
 def _apply_task_fields(task, data, partial: bool):
@@ -76,10 +71,12 @@ def _apply_task_fields(task, data, partial: bool):
 def _award_points_to_owner(task) -> dict:
     task.completed_at = timezone.now()
     owner = task.owner
+    main_type, goal_subtype = _get_points_params_for_task()
 
     calc = LevelSystem.complete_task_with_rules(
         current_points=float(owner.points),
-        task_type=_map_task_type(task),
+        main_type=main_type,
+        goal_subtype=goal_subtype,
     )
 
     # Convertimos a string -> Decimal para evitar errores de precisión flotante en Postgres

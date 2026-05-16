@@ -183,15 +183,16 @@ class LevelSystem:
     @classmethod
     def get_points_from_rules(
         cls,
-        task_type: str,
+        main_type: str,
+        goal_subtype: str | None = None,
         habit_day: int | None = None,
     ) -> float:
-        if task_type == "daily_action":
+        if main_type == "task":
             return 0.10
 
-        if task_type == "habit":
+        if main_type == "habit":
             if habit_day is None:
-                raise ValueError("habit_day is required when task_type is 'habit'.")
+                raise ValueError("habit_day is required when main_type is 'habit'.")
             if habit_day == 365:
                 return 3.65
             if habit_day == 100:
@@ -200,30 +201,39 @@ class LevelSystem:
                 return 0.10
             return 0.01
 
-        if task_type == "weekly_goal":
-            return 1.00
+        if main_type == "goal":
+            if goal_subtype is None:
+                raise ValueError("goal_subtype is required when main_type is 'goal'.")
 
-        if task_type == "monthly_project":
-            return 5.00
+            if goal_subtype == "weekly_goal":
+                return 1.00
 
-        if task_type == "annual_project":
-            return 15.00
+            if goal_subtype == "monthly_project":
+                return 5.00
 
-        if task_type == "five_year_project":
-            return 30.00
+            if goal_subtype == "annual_project":
+                return 15.00
 
-        raise ValueError("Invalid task_type.")
+            if goal_subtype == "five_year_project":
+                return 30.00
+
+            raise ValueError("Invalid goal_subtype.")
+
+        raise ValueError("Invalid main_type.")
 
     @classmethod
     def complete_task_with_rules(
         cls,
         current_points: float,
-        task_type: str,
+        main_type: str,
+        goal_subtype: str | None = None,
         habit_day: int | None = None,
     ) -> dict:
         previous_points = cls.clamp_points(current_points)
         earned_points = cls.get_points_from_rules(
-            task_type=task_type, habit_day=habit_day
+            main_type=main_type,
+            goal_subtype=goal_subtype,
+            habit_day=habit_day,
         )
         new_points = cls.clamp_points(previous_points + earned_points)
 
@@ -234,7 +244,8 @@ class LevelSystem:
 
         return {
             "task_completed": True,
-            "task_type": task_type,
+            "main_type": main_type,
+            "goal_subtype": goal_subtype,
             "earned_points": earned_points,
             "total_points": round(new_points, 2),
             "level_result": level_result,

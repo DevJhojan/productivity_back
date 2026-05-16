@@ -88,8 +88,8 @@ class PatchTaskLevelTest(TestCase):
 
         self.owner.refresh_from_db()
         self.assertIn("earned_points", data)
-        self.assertGreater(data["earned_points"], 0)
-        self.assertGreater(float(self.owner.points), 0)
+        self.assertEqual(data["earned_points"], 0.10)
+        self.assertEqual(float(self.owner.points), 0.10)
 
     def test_patch_to_completed_sets_completed_at(self):
         patch_task(self.task, {"status": "COMPLETED"})
@@ -134,7 +134,8 @@ class UpdateTaskLevelTest(TestCase):
 
         self.owner.refresh_from_db()
         self.assertIn("earned_points", data)
-        self.assertGreater(float(self.owner.points), 0)
+        self.assertEqual(data["earned_points"], 0.10)
+        self.assertEqual(float(self.owner.points), 0.10)
 
     def test_put_already_completed_does_not_double_award(self):
         self.task.status = Task.Status.COMPLETED
@@ -179,27 +180,11 @@ class CustomStatusTransitionPointsPersistenceTest(TestCase):
         self.assertGreater(float(owner.points), 0.0)
 
 
-class MapTaskTypeTest(TestCase):
-    def setUp(self):
-        self.owner = make_user()
+class PointsParamsForTaskTest(TestCase):
+    def test_task_model_always_maps_to_task_main_type(self):
+        from .task_service import _get_points_params_for_task
 
-    def test_important_urgent_maps_to_weekly_goal(self):
-        task = make_task(self.owner, priority=Task.Priority.IMPORTANT_URGENT)
-        from .task_service import _map_task_type
-
-        self.assertEqual(_map_task_type(task), "weekly_goal")
-
-    def test_important_not_urgent_maps_to_monthly_project(self):
-        task = make_task(self.owner, priority=Task.Priority.IMPORTANT_NOT_URGENT)
-        from .task_service import _map_task_type
-
-        self.assertEqual(_map_task_type(task), "monthly_project")
-
-    def test_not_important_maps_to_daily_action(self):
-        task = make_task(self.owner, priority=Task.Priority.NOT_IMPORTANT_NOT_URGENT)
-        from .task_service import _map_task_type
-
-        self.assertEqual(_map_task_type(task), "daily_action")
+        self.assertEqual(_get_points_params_for_task(), ("task", None))
 
 
 class DeleteTaskTest(TestCase):

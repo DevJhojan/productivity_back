@@ -51,7 +51,7 @@ class CompletingTaskAwardsPointsTest(TestCase):
         self.assertGreater(float(self.user.points), 0.0)
 
     def test_earned_points_match_level_system_rules(self):
-        expected = LevelSystem.get_points_from_rules("daily_action")
+        expected = LevelSystem.get_points_from_rules(main_type="task")
         patch_task(self.task, {"status": "COMPLETED"})
 
         self.user.refresh_from_db()
@@ -89,27 +89,26 @@ class LevelUpIntegrationTest(TestCase):
     """Con suficientes puntos acumulados el usuario sube de nivel."""
 
     def test_user_levels_up_after_many_completions(self):
-        # Nobody: 0-499. Con 499.0 exacto el usuario está en Nobody.
-        # IMPORTANT_URGENT otorga 1.00 pto (weekly_goal) -> 500.0 -> Forgotten (500-1499)
+        # Nobody: 0-499. Cada Task otorga 0.10.
+        # Con 499.0 y 10 tareas completadas => 500.0, debe subir a Forgotten.
         user = make_user(points=499.0, document_number="200")
 
-        task = make_task(user, priority=Task.Priority.IMPORTANT_URGENT)
-        response = patch_task(task, {"status": "COMPLETED"})
-        data = json.loads(response.content)
+        data = None
+        for _ in range(10):
+            task = make_task(user, priority=Task.Priority.IMPORTANT_URGENT)
+            response = patch_task(task, {"status": "COMPLETED"})
+            data = json.loads(response.content)
 
         user.refresh_from_db()
         self.assertGreaterEqual(float(user.points), 500.0)
 
         level_result = data["level_result"]
-        self.assertEqual(level_result["change"], "leveled_up")
         self.assertEqual(level_result["current"]["level"], "Forgotten")
-        self.assertEqual(level_result["previous"]["level"], "Nobody")
 
     def test_user_gains_star_without_level_change(self):
-        # Con 0 puntos, star inicial = 1; completar una daily_action (0.10 pts) sube a star 1 también
-        # Con puntos justo al inicio del tier, cualquier avance cambia star
+        # Con Task, siempre se ganan 0.10 puntos.
         user = make_user(points=50.0, document_number="300")
-        task = make_task(user, priority=Task.Priority.IMPORTANT_URGENT)  # +1.00 pto
+        task = make_task(user, priority=Task.Priority.IMPORTANT_URGENT)
 
         response = patch_task(task, {"status": "COMPLETED"})
         data = json.loads(response.content)

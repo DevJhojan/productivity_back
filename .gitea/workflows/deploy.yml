@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: act # O la etiqueta que le hayas dado a tu runner
+    runs-on: ubuntu-24.04 # O la etiqueta que le hayas dado a tu runner
     steps:
       - name: Checkout del código
         uses: actions/checkout@v3

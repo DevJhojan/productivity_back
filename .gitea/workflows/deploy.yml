@@ -21,7 +21,7 @@ jobs:
         run: |
           # Navegamos a la carpeta donde está el docker-compose de producción en el servidor
           # e indicamos que levante la nueva imagen construida.
-          cd /home/devjdtpserver/Compartido/Productions/productivity-prod
+          cd /home/devjdtpserver/Compartido/Productions/productivity-prod/
           docker compose -f docker-compose.prod.yml up -d --build
           
           # Ejecutar migraciones y recolectar estáticos dentro del nuevo contenedor

@@ -1,5 +1,5 @@
 # 1. Imagen base oficial de Python (ligera y optimizada)
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # 2. Establecer variables de entorno cruciales para Python en Docker
 # Previerte que Python escriba archivos .pyc en el disco

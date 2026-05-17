@@ -27,4 +27,3 @@ jobs:
           # Ejecutar migraciones y recolectar estáticos dentro del nuevo contenedor
           docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
           docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
-      

@@ -25,6 +25,7 @@ jobs:
           username: devjdtpserver
           key: ${{ secrets.SSH_PRIVATE_KEY_1 }}
           port: 22
+          debug: true
           script: |
             cd /home/devjdtpserver/Compartido/Productions/productivity-prod
             docker compose -f docker-compose.prod.yml up -d --build

@@ -19,12 +19,9 @@ jobs:
 
       - name: Desplegar en producción
         run: |
-          # Navegamos a la carpeta donde está el docker-compose de producción en el servidor
-          # e indicamos que levante la nueva imagen construida.
-          # cd /home/devjdtpserver/Compartido/Productions/productivity-prod
-          echo "${{ secrets.ENV_PROD_CONTENT }}" > .env.prod
+          # El runner ya lee el docker-compose.prod.yml porque se descargó con el repositorio
           docker compose -f docker-compose.prod.yml up -d --build
           
-          # Ejecutar migraciones y recolectar estáticos dentro del nuevo contenedor
+          # Se ejecutan los comandos interactuando con el Docker del servidor host
           docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
           docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput

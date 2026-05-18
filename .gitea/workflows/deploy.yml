@@ -28,5 +28,5 @@ jobs:
           script: |
             cd /home/devjdtpserver/Compartido/Productions/productivity-prod
             /usr/bin/docker compose -f docker-compose.prod.yml up -d --build
-            /usr/bin/docker docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
-            /usr/bin/docker docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
+            /usr/bin/docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+            /usr/bin/docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput

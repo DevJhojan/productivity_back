@@ -32,4 +32,4 @@ EXPOSE 8000
 
 # 9. Comando por defecto para arrancar la aplicación con Gunicorn en producción
 # NOTA: Reemplaza 'core' por el nombre real de la carpeta que contiene tu archivo wsgi.py
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "core.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "productivity_back.wsgi:application"]
